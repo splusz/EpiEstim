@@ -365,9 +365,10 @@ estimate_R_func <- function(incid,
   #########################################################
 
   posterior_from_si_distr <- function(incid, si_distr, a_prior, b_prior,
-                                        t_start, t_end) {
+                                      t_start, t_end, 
+                                      group = "all") {
     nb_time_periods <- length(t_start)
-    lambda <- overall_infectivity(incid, si_distr)
+    lambda <- overall_infectivity(incid, si_distr, group)
     final_mean_si <- sum(si_distr * (seq(0, length(si_distr) -
       1)))
     a_posterior <- vector()
@@ -397,7 +398,8 @@ estimate_R_func <- function(incid,
 
   sample_from_posterior <- function(sample_size, incid, mean_si, std_si,
                                     si_distr = NULL,
-                                      a_prior, b_prior, t_start, t_end) {
+                                    a_prior, b_prior, t_start, t_end,
+                                    group = "all") {
     nb_time_periods <- length(t_start)
 
     if (is.null(si_distr)) {
@@ -406,7 +408,7 @@ estimate_R_func <- function(incid,
 
     final_mean_si <- sum(si_distr * (seq(0, length(si_distr) -
       1)))
-    lambda <- overall_infectivity(incid, si_distr)
+    lambda <- overall_infectivity(incid, si_distr, group)
     a_posterior <- vector()
     b_posterior <- vector()
     a_posterior <- vnapply(seq_len(nb_time_periods), function(t) if (t_end[t] >
@@ -505,7 +507,8 @@ estimate_R_func <- function(incid,
       temp <- lapply(seq_len(config$n1), function(k) sample_from_posterior(config$n2,
           incid, mean_si_sample[k], std_si_sample[k],
           si_distr = NULL, a_prior,
-          b_prior, config$t_start, config$t_end
+          b_prior, config$t_start, config$t_end,
+          group = config$group
         ))
       config$si_distr <- cbind(
         t(vapply(seq_len(config$n1), function(k) (temp[[k]])[[2]], numeric(T))),
@@ -532,11 +535,11 @@ estimate_R_func <- function(incid,
         na.rm = TRUE
       )
       median_posterior <- apply(r_sample, 2, median, na.rm = TRUE)
-      quantile_0.25_posterior <- apply(r_sample, 2, quantile,
+      quantile_0.75_posterior <- apply(r_sample, 2, quantile,
         0.75,
         na.rm = TRUE
       )
-      quantile_0.25_posterior <- apply(r_sample, 2, quantile,
+      quantile_0.95_posterior <- apply(r_sample, 2, quantile,
         0.95,
         na.rm = TRUE
       )
@@ -559,7 +562,8 @@ estimate_R_func <- function(incid,
       temp <- lapply(seq_len(config$n1), function(k) sample_from_posterior(config$n2,
           incid,
           mean_si = NULL, std_si = NULL, si_sample[, k], a_prior,
-          b_prior, config$t_start, config$t_end
+          b_prior, config$t_start, config$t_end,
+          group = config$group
         ))
       config$si_distr <- cbind(
         t(vapply(seq_len(config$n1), function(k) (temp[[k]])[[2]], 
@@ -587,11 +591,11 @@ estimate_R_func <- function(incid,
         na.rm = TRUE
       )
       median_posterior <- apply(r_sample, 2, median, na.rm = TRUE)
-      quantile_0.25_posterior <- apply(r_sample, 2, quantile,
+      quantile_0.75_posterior <- apply(r_sample, 2, quantile,
         0.75,
         na.rm = TRUE
       )
-      quantile_0.25_posterior <- apply(r_sample, 2, quantile,
+      quantile_0.95_posterior <- apply(r_sample, 2, quantile,
         0.95,
         na.rm = TRUE
       )
@@ -614,7 +618,8 @@ estimate_R_func <- function(incid,
       1))^2) - final_mean_si^2)
     post <- posterior_from_si_distr(
       incid, config$si_distr, a_prior, b_prior,
-      config$t_start, config$t_end
+      config$t_start, config$t_end, 
+      group = config$group
     )
     a_posterior <- unlist(post[[1]])
     b_posterior <- unlist(post[[2]])
@@ -636,11 +641,11 @@ estimate_R_func <- function(incid,
       shape = a_posterior,
       scale = b_posterior, lower.tail = TRUE, log.p = FALSE
     )
-    quantile_0.25_posterior <- qgamma(0.75,
+    quantile_0.75_posterior <- qgamma(0.75,
       shape = a_posterior,
       scale = b_posterior, lower.tail = TRUE, log.p = FALSE
     )
-    quantile_0.25_posterior <- qgamma(0.95,
+    quantile_0.95_posterior <- qgamma(0.95,
       shape = a_posterior,
       scale = b_posterior, lower.tail = TRUE, log.p = FALSE
     )
@@ -653,8 +658,8 @@ estimate_R_func <- function(incid,
   results <- list(R = as.data.frame(cbind(
     config$t_start, config$t_end, mean_posterior,
     std_posterior, quantile_0.025_posterior, quantile_0.05_posterior,
-    quantile_0.25_posterior, median_posterior, quantile_0.25_posterior,
-    quantile_0.25_posterior, quantile_0.975_posterior
+    quantile_0.25_posterior, median_posterior, quantile_0.75_posterior,
+    quantile_0.95_posterior, quantile_0.975_posterior
   )))
 
   names(results$R) <- c(

@@ -83,10 +83,14 @@
 #' 
 #' \item{cv_posterior}{A positive number giving the aimed posterior coefficient
 #' of variation (see details).}
+
+#' \item{group}{The incidence group involved in computing overall_infectivity. One 
+#' of "all", "imported".}
 #'
 #' }
 #' @param incid As in function\code{estimate_R}. 
 #' @param method As in function\code{estimate_R}.
+#' 
 #'
 #' @details
 #' Analytical estimates of the reproduction number for an epidemic over
@@ -311,7 +315,8 @@ make_config <- function(..., incid = NULL,
                    seed = NULL, 
                    mean_prior = 5, 
                    std_prior = 5, 
-                   cv_posterior = 0.3)
+                   cv_posterior = 0.3,
+                   group = "all")
   
   ## MODIFY CONFIG WITH ARGUMENTS ##
   config <- modify_defaults(defaults, config)
