@@ -25,6 +25,9 @@
 #' @param mean_si The mean serial interval.
 #'
 #' @param std_si The stadard deviation of the serial interval.
+#' 
+#' @param I_past The historical incidence data, if not NULL, must be a dataframe 
+#' with 3 columns called 'D_im', 'I_im' and 'I_lc'.
 #'
 #' @return A list of vectors
 #'
@@ -40,7 +43,8 @@ simulate_Is <- function (R_im,
                          mean_im = NULL,
                          si_distr = NULL,
                          mean_si = NULL,
-                         std_si = NULL) {
+                         std_si = NULL,
+                         I_past = NULL) {
   if (!is.vector(R_im)) {
     stop("R_im must be a vector.")
   }
@@ -74,29 +78,46 @@ simulate_Is <- function (R_im,
     si_distr[seq(length(si_distr) + 1, T + 1)] <- 0
   }
   
-  I_im <- rep(0, T)
-  I_lc <- rep(0, T)
-  lambda_im <- vector()
-  lambda_im[1] <- NA
-  lambda_lc <- vector()
-  lambda_lc[1] <- NA
-  
-  ignore_R_im <- FALSE
-  if (all(R_im == 0)) {
-    ignore_R_im <- TRUE
-    I_im <- D_im
-  }
-  
-  for (t in seq(2, T)) {
-    if (!ignore_R_im) {
+  if (!is.null(I_past)) {
+    T_past <- nrow(I_past)
+    lambda_im <- vector()
+    lambda_im[1] <- NA
+    lambda_lc <- vector()
+    lambda_lc[1] <- NA
+
+    for (t in seq(2, T_past)) {
+      lambda_im[t] <- sum(si_distr[seq_len(t)] * I_past$D_im[seq(t, 1)], na.rm = TRUE)
+      lambda_lc[t] <- sum(si_distr[seq_len(t)] * (I_past$I_im + I_past$I_lc)[seq(t, 1)], na.rm = TRUE)
+    }
+    
+    I_im <- rep(0, T)
+    I_lc <- rep(0, T)
+    for (t in seq(1, T)) {
+      t1 <- t + T_past
+      I <- rbind(I_past, data.frame(D_im = D_im, I_im = I_im, I_lc = I_lc))
+      lambda_im[t1] <- sum(si_distr[seq_len(t1)] * I$D_im[seq(t1, 1)], na.rm = TRUE)
+      lambda_lc[t1] <- sum(si_distr[seq_len(t1)] * (I$I_im + I$I_lc)[seq(t1, 1)], na.rm = TRUE)
+      I_im[t] = rpois(1, R_im[t] * lambda_im[t1])
+      I_lc[t] = rpois(1, R_lc[t] * lambda_lc[t1])
+    }
+  } else {
+    lambda_im <- vector()
+    lambda_im[1] <- NA
+    lambda_lc <- vector()
+    lambda_lc[1] <- NA
+
+    I_im <- rep(0, T)
+    I_lc <- rep(0, T)
+    for (t in seq(2, T)) {
       lambda_im[t] <-
         sum(si_distr[seq_len(t)] * D_im[seq(t, 1)], na.rm = TRUE)
       I_im[t] = rpois(1, R_im[t] * lambda_im[t])
+      
+      lambda_lc[t] <-
+        sum(si_distr[seq_len(t)] * (I_im + I_lc)[seq(t, 1)],
+            na.rm = TRUE)
+      I_lc[t] = rpois(1, R_lc[t] * lambda_lc[t])
     }
-    lambda_lc[t] <-
-      sum(si_distr[seq_len(t)] * (I_im + I_lc)[seq(t, 1)],
-          na.rm = TRUE)
-    I_lc[t] = rpois(1, R_lc[t] * lambda_lc[t])
   }
   
   result = list(

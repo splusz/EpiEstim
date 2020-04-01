@@ -18,10 +18,13 @@
 #' interval is zero), which should be zero. If not given, \code{si_distr} will
 #' be generated using \code{\link{discr_si}} with parameters \code{mean_si} and
 #' \code{std_si}.
-#'
+#' 
 #' @param mean_si The mean serial interval.
 #'
 #' @param std_si The stadard deviation of the serial interval.
+#' 
+#' @param I_past The historical incidence data, if not NULL, must be a dataframe with 2 
+#' columns called 'local' and 'imported'.
 #'
 #' @return A list of vectors
 #'
@@ -36,7 +39,8 @@ simulate_I <- function (R,
                         mean_im = NULL,
                         si_distr = NULL,
                         mean_si = NULL,
-                        std_si = NULL) {
+                        std_si = NULL,
+                        I_past = NULL) {
   if (!is.vector(R)) {
     stop("R must be a vector.")
   }
@@ -64,16 +68,35 @@ simulate_I <- function (R,
     si_distr[seq(length(si_distr) + 1, T + 1)] <- 0
   }
   
-  I_local <- rep(0, T)
-  lambda <- vector()
-  lambda[1] <- NA
-  
-  for (t in seq(2, T)) {
-    lambda[t] <- sum(si_distr[seq_len(t)] * (I_imported + I_local)[seq(t, 1)],
-                     na.rm = TRUE)
-    I_local[t] = rpois(1, R[t] * lambda[t])
+  if (!is.null(I_past)) {
+    T_past <- nrow(I_past)
+    lambda <- vector()
+    lambda[1] <- NA
+    for (t in seq(2, T_past)) {
+      lambda[t] <- sum(si_distr[seq_len(t)] * rowSums(I_past[seq(t, 1), c("local", "imported")]),
+                      na.rm = TRUE)
+    }
+
+    I_local <- rep(0, T)
+    for (t in seq(1, T)) {
+      t1 <- t + T_past
+      I <- rbind(I_past, data.frame(imported = I_imported, local = I_local))
+      lambda[t1] <- sum(si_distr[seq_len(t1)] * rowSums(I[seq(t1, 1), c("local", "imported")]),
+                      na.rm = TRUE)
+      I_local[t] = rpois(1, R[t] * lambda[t1])
+    }
+  } else {
+    lambda <- vector()
+    lambda[1] <- NA
+
+    I_local <- rep(0, T)
+    for (t in seq(2, T)) {
+      lambda[t] <- sum(si_distr[seq_len(t)] * (I_imported + I_local)[seq(t, 1)],
+                      na.rm = TRUE)
+      I_local[t] = rpois(1, R[t] * lambda[t])
+    }
   }
-  
+
   result = list(
     R = R,
     I = I_imported + I_local,
