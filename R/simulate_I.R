@@ -55,17 +55,21 @@ simulate_I <- function (R,
   }
   
   T <- length(I_imported)
+  T_all <- T
+  if (!is.null(I_past)) {
+    T_all <- T + nrow(I_past)
+  } 
   if (!is.null(si_distr)) {
     if (!is.vector(si_distr)) {
       stop("si_distr must be either NULL or a vector.")
     }
   } else if (!is.null(mean_si) && !is.null(std_si)) {
-    si_distr <- discr_si(seq(0, T - 1), mean_si, std_si)
+    si_distr <- discr_si(seq(0, T_all - 1), mean_si, std_si)
   } else {
     stop("si_distr and (mean_si, std_si) cannot both be null.")
   }
-  if (length(si_distr) < T + 1) {
-    si_distr[seq(length(si_distr) + 1, T + 1)] <- 0
+  if (length(si_distr) < T_all + 1) {
+    si_distr[seq(length(si_distr) + 1, T_all + 1)] <- 0
   }
   
   if (!is.null(I_past)) {
