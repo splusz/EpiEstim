@@ -44,7 +44,8 @@ simulate_Is <- function (R_im,
                          si_distr = NULL,
                          mean_si = NULL,
                          std_si = NULL,
-                         I_past = NULL) {
+                         I_past = NULL,
+                         window = 6) {
   if (!is.vector(R_im)) {
     stop("R_im must be a vector.")
   }
@@ -69,7 +70,7 @@ simulate_Is <- function (R_im,
   if (!is.null(I_past)) {
     T_all <- T + nrow(I_past)
   }
-
+  
   if (!is.null(si_distr)) {
     if (!is.vector(si_distr)) {
       stop("si_distr must be either NULL or a vector.")
@@ -89,39 +90,81 @@ simulate_Is <- function (R_im,
     lambda_im[1] <- NA
     lambda_lc <- vector()
     lambda_lc[1] <- NA
-
+    
     for (t in seq(2, T_past)) {
-      lambda_im[t] <- sum(si_distr[seq_len(t)] * I_past$D_im[seq(t, 1)], na.rm = TRUE)
-      lambda_lc[t] <- sum(si_distr[seq_len(t)] * (I_past$I_im + I_past$I_lc)[seq(t, 1)], na.rm = TRUE)
+      lambda_im[t] <-
+        sum(si_distr[seq_len(t)] * I_past$D_im[seq(t, 1)], na.rm = TRUE)
+      lambda_lc[t] <-
+        sum(si_distr[seq_len(t)] * (I_past$I_im + I_past$I_lc)[seq(t, 1)], na.rm = TRUE)
     }
     
     I_im <- rep(0, T)
     I_lc <- rep(0, T)
     for (t in seq(1, T)) {
       t1 <- t + T_past
-      I <- rbind(I_past, data.frame(D_im = D_im, I_im = I_im, I_lc = I_lc))
-      lambda_im[t1] <- sum(si_distr[seq_len(t1)] * I$D_im[seq(t1, 1)], na.rm = TRUE)
-      lambda_lc[t1] <- sum(si_distr[seq_len(t1)] * (I$I_im + I$I_lc)[seq(t1, 1)], na.rm = TRUE)
-      I_im[t] = rpois(1, R_im[t] * lambda_im[t1])
-      I_lc[t] = rpois(1, R_lc[t] * lambda_lc[t1])
+      I <-
+        rbind(I_past, data.frame(
+          D_im = D_im,
+          I_im = I_im,
+          I_lc = I_lc
+        ))
+      lambda_im[t1] <-
+        sum(si_distr[seq_len(t1)] * I$D_im[seq(t1, 1)], na.rm = TRUE)
+      lambda_lc[t1] <-
+        sum(si_distr[seq_len(t1)] * (I$I_im + I$I_lc)[seq(t1, 1)], na.rm = TRUE)
+      
+      if (window <= 0) {
+        I_im[t] <- rpois(1, R_im[t] * lambda_im[t1])
+        I_lc[t] <- rpois(1, R_lc[t] * lambda_lc[t1])
+      } else {
+        t0 <- max(1, t1 - window)
+        mean_I_im <-
+          R_im[t] * sum(lambda_im[seq(t0, t1)], na.rm = TRUE) - sum(I$I_im[seq(t0, t1 - 1)], na.rm = TRUE)
+        if (mean_I_im < 0) {
+          mean_I_im <- 0
+        }
+        mean_I_lc <-
+          R_lc[t] * sum(lambda_lc[seq(t0, t1)], na.rm = TRUE) - sum(I$I_lc[seq(t0, t1 - 1)], na.rm = TRUE)
+        if (mean_I_lc < 0) {
+          mean_I_lc <- 0
+        }
+        I_im[t] <- rpois(1, mean_I_im)
+        I_lc[t] <- rpois(1, mean_I_lc)
+      }
     }
   } else {
     lambda_im <- vector()
     lambda_im[1] <- NA
     lambda_lc <- vector()
     lambda_lc[1] <- NA
-
+    
     I_im <- rep(0, T)
     I_lc <- rep(0, T)
     for (t in seq(2, T)) {
       lambda_im[t] <-
         sum(si_distr[seq_len(t)] * D_im[seq(t, 1)], na.rm = TRUE)
-      I_im[t] = rpois(1, R_im[t] * lambda_im[t])
-      
       lambda_lc[t] <-
         sum(si_distr[seq_len(t)] * (I_im + I_lc)[seq(t, 1)],
             na.rm = TRUE)
-      I_lc[t] = rpois(1, R_lc[t] * lambda_lc[t])
+      
+      if (window <= 0) {
+        I_im[t] <- rpois(1, R_im[t] * lambda_im[t])
+        I_lc[t] <- rpois(1, R_lc[t] * lambda_lc[t])
+      } else {
+        t0 <- max(1, t - window)
+        mean_I_im <-
+          R_im[t] * sum(lambda_im[seq(t0, t)], na.rm = TRUE) - sum(I$I_im[seq(t0, t - 1)], na.rm = TRUE)
+        if (mean_I_im < 0) {
+          mean_I_im <- 0
+        }
+        mean_I_lc <-
+          R_lc[t] * sum(lambda_lc[seq(t0, t)], na.rm = TRUE) - sum(I$I_lc[seq(t0, t - 1)], na.rm = TRUE)
+        if (mean_I_lc < 0) {
+          mean_I_lc <- 0
+        }
+        I_im[t] <- rpois(1, mean_I_im)
+        I_lc[t] <- rpois(1, mean_I_lc)
+      }
     }
   }
   

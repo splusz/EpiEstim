@@ -40,7 +40,8 @@ simulate_I <- function (R,
                         si_distr = NULL,
                         mean_si = NULL,
                         std_si = NULL,
-                        I_past = NULL) {
+                        I_past = NULL,
+                        window = 6) {
   if (!is.vector(R)) {
     stop("R must be a vector.")
   }
@@ -58,7 +59,7 @@ simulate_I <- function (R,
   T_all <- T
   if (!is.null(I_past)) {
     T_all <- T + nrow(I_past)
-  } 
+  }
   if (!is.null(si_distr)) {
     if (!is.vector(si_distr)) {
       stop("si_distr must be either NULL or a vector.")
@@ -77,30 +78,55 @@ simulate_I <- function (R,
     lambda <- vector()
     lambda[1] <- NA
     for (t in seq(2, T_past)) {
-      lambda[t] <- sum(si_distr[seq_len(t)] * rowSums(I_past[seq(t, 1), c("local", "imported")]),
-                      na.rm = TRUE)
+      lambda[t] <-
+        sum(si_distr[seq_len(t)] * rowSums(I_past[seq(t, 1), c("local", "imported")]), na.rm = TRUE)
     }
-
+    
     I_local <- rep(0, T)
     for (t in seq(1, T)) {
       t1 <- t + T_past
-      I <- rbind(I_past, data.frame(imported = I_imported, local = I_local))
-      lambda[t1] <- sum(si_distr[seq_len(t1)] * rowSums(I[seq(t1, 1), c("local", "imported")]),
-                      na.rm = TRUE)
-      I_local[t] = rpois(1, R[t] * lambda[t1])
+      I <-
+        rbind(I_past, data.frame(imported = I_imported, local = I_local))
+      lambda[t1] <-
+        sum(si_distr[seq_len(t1)] * rowSums(I[seq(t1, 1), c("local", "imported")]),
+            na.rm = TRUE)
+      
+      if (window <= 0) {
+        I_local[t] <- rpois(1, R[t] * lambda[t1])
+      } else {
+        t0 <- max(1, t1 - window)
+        mean_I <-
+          R[t] * sum(lambda[seq(t0, t1)], na.rm = TRUE) - sum(I$local[seq(t0, t1 - 1)], na.rm = TRUE)
+        if (mean_I < 0) {
+          mean_I <- 0
+        }
+        I_local[t] <- rpois(1, mean_I)
+      }
     }
   } else {
     lambda <- vector()
     lambda[1] <- NA
-
+    
     I_local <- rep(0, T)
     for (t in seq(2, T)) {
-      lambda[t] <- sum(si_distr[seq_len(t)] * (I_imported + I_local)[seq(t, 1)],
-                      na.rm = TRUE)
-      I_local[t] = rpois(1, R[t] * lambda[t])
+      lambda[t] <-
+        sum(si_distr[seq_len(t)] * (I_imported + I_local)[seq(t, 1)],
+            na.rm = TRUE)
+            
+      if (window <= 0) {
+        I_local[t] <- rpois(1, R[t] * lambda[t])
+      } else {
+        t0 <- max(1, t - window)
+        mean_I <-
+          R[t] * sum(lambda[seq(t0, t)], na.rm = TRUE) - sum(I_local[seq(t0, t - 1)], na.rm = TRUE)
+        if (mean_I < 0) {
+          mean_I <- 0
+        }
+        I_local[t] <- rpois(1, mean_I)
+      }
     }
   }
-
+  
   result = list(
     R = R,
     I = I_imported + I_local,
