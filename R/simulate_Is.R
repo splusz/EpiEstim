@@ -45,7 +45,7 @@ simulate_Is <- function (R_im,
                          mean_si = NULL,
                          std_si = NULL,
                          I_past = NULL,
-                         window = 6) {
+                         window = 0) {
   if (!is.vector(R_im)) {
     stop("R_im must be a vector.")
   }
@@ -112,25 +112,8 @@ simulate_Is <- function (R_im,
         sum(si_distr[seq_len(t1)] * I$D_im[seq(t1, 1)], na.rm = TRUE)
       lambda_lc[t1] <-
         sum(si_distr[seq_len(t1)] * (I$I_im + I$I_lc)[seq(t1, 1)], na.rm = TRUE)
-      
-      if (window <= 0) {
-        I_im[t] <- rpois(1, R_im[t] * lambda_im[t1])
-        I_lc[t] <- rpois(1, R_lc[t] * lambda_lc[t1])
-      } else {
-        t0 <- max(1, t1 - window)
-        mean_I_im <-
-          R_im[t] * sum(lambda_im[seq(t0, t1)], na.rm = TRUE) - sum(I$I_im[seq(t0, t1 - 1)], na.rm = TRUE)
-        if (mean_I_im < 0) {
-          mean_I_im <- 0
-        }
-        mean_I_lc <-
-          R_lc[t] * sum(lambda_lc[seq(t0, t1)], na.rm = TRUE) - sum(I$I_lc[seq(t0, t1 - 1)], na.rm = TRUE)
-        if (mean_I_lc < 0) {
-          mean_I_lc <- 0
-        }
-        I_im[t] <- rpois(1, mean_I_im)
-        I_lc[t] <- rpois(1, mean_I_lc)
-      }
+      I_im[t] <- rpois(1, R_im[t] * lambda_im[t1])
+      I_lc[t] <- rpois(1, R_lc[t] * lambda_lc[t1])
     }
   } else {
     lambda_im <- vector()
@@ -146,25 +129,8 @@ simulate_Is <- function (R_im,
       lambda_lc[t] <-
         sum(si_distr[seq_len(t)] * (I_im + I_lc)[seq(t, 1)],
             na.rm = TRUE)
-      
-      if (window <= 0) {
-        I_im[t] <- rpois(1, R_im[t] * lambda_im[t])
-        I_lc[t] <- rpois(1, R_lc[t] * lambda_lc[t])
-      } else {
-        t0 <- max(1, t - window)
-        mean_I_im <-
-          R_im[t] * sum(lambda_im[seq(t0, t)], na.rm = TRUE) - sum(I$I_im[seq(t0, t - 1)], na.rm = TRUE)
-        if (mean_I_im < 0) {
-          mean_I_im <- 0
-        }
-        mean_I_lc <-
-          R_lc[t] * sum(lambda_lc[seq(t0, t)], na.rm = TRUE) - sum(I$I_lc[seq(t0, t - 1)], na.rm = TRUE)
-        if (mean_I_lc < 0) {
-          mean_I_lc <- 0
-        }
-        I_im[t] <- rpois(1, mean_I_im)
-        I_lc[t] <- rpois(1, mean_I_lc)
-      }
+      I_im[t] <- rpois(1, R_im[t] * lambda_im[t])
+      I_lc[t] <- rpois(1, R_lc[t] * lambda_lc[t])
     }
   }
   
